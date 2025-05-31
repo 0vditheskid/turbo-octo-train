@@ -9,115 +9,92 @@
       background: #121212;
       color: #fff;
       font-family: 'Segoe UI', sans-serif;
-      margin: 0;
-      padding: 30px;
       text-align: center;
+      padding: 40px;
     }
-    h1 { margin-bottom: 10px; }
-    .controls, .stats { margin: 20px auto; max-width: 600px; }
-    .controls input, .controls button {
-      margin: 5px;
+    button, input {
       padding: 10px;
+      margin: 10px;
       font-size: 16px;
-      border-radius: 6px;
-      border: none;
     }
-    .start { background: #28a745; color: white; }
-    .stop { background: #dc3545; color: white; }
     .stats {
+      margin-top: 20px;
+      font-family: monospace;
       background: #1e1e1e;
       padding: 20px;
-      border-radius: 10px;
+      border-radius: 8px;
+      display: inline-block;
       text-align: left;
-      font-size: 14px;
     }
     #logs {
       margin-top: 20px;
+      font-size: 13px;
       background: #000;
       color: #ccc;
-      font-family: monospace;
-      font-size: 13px;
       padding: 15px;
       max-height: 200px;
-      overflow-y: scroll;
+      overflow-y: auto;
       border-radius: 8px;
+      font-family: monospace;
     }
   </style>
 </head>
 <body>
-  <h1>⚒️ Advanced Monero Web Miner</h1>
-  <p><strong>Wallet:</strong> <code>49hUXZwzm46RUxv1Q1j422c7RaBU46yQminDUZssXzkQaGEcdYdy8cASvLv1Dgew46BAWu9uuxzTueMrz781dgNxKTgYopu</code></p>
+  <h1>⚒️ Monero Web Miner</h1>
+  <p>Wallet: <code>49hUXZwzm46RUxv1Q1j422c7RaBU46yQminDUZssXzkQaGEcdYdy8cASvLv1Dgew46BAWu9uuxzTueMrz781dgNxKTgYopu</code></p>
 
-  <div class="controls">
-    <button class="start">Start Mining</button>
-    <button class="stop">Stop</button>
-    <input type="number" id="threads" value="2" min="1" max="8" placeholder="Threads" />
-    <input type="number" id="throttle" value="20" min="0" max="100" placeholder="Throttle %" />
-  </div>
-
+  <button onclick="startMiner()">▶️ Start Mining</button>
+  <button onclick="stopMiner()">⏹️ Stop Mining</button>
+  <input id="threads" type="number" value="2" min="1" max="8" />
+  <input id="throttle" type="number" value="20" min="0" max="100" />
+  
   <div class="stats">
-    <div id="status">Status: Not mining</div>
+    <div id="status">Status: Idle</div>
     <div id="hashrate">Hashrate: 0 H/s</div>
-    <div id="total">Total Hashes: 0</div>
     <div id="accepted">Accepted Shares: 0</div>
-    <div id="uptime">Uptime: 0s</div>
   </div>
 
   <div id="logs">[Logs]</div>
 
-  <script src="https://cdn.jsdelivr.net/gh/notgiven688/webminerpool@master/client/miner.min.js"></script>
+  <script src="/miner.min.js"></script>
   <script>
-    let miner;
-    let interval;
-    let startTime;
+    let miner, interval;
 
     function log(msg) {
-      const logs = document.getElementById('logs');
+      const logs = document.getElementById("logs");
       logs.textContent += `[${new Date().toLocaleTimeString()}] ${msg}\n`;
       logs.scrollTop = logs.scrollHeight;
     }
 
-    function updateStats() {
-      if (!miner) return;
-      document.getElementById('hashrate').textContent = `Hashrate: ${miner.getHashesPerSecond().toFixed(2)} H/s`;
-      document.getElementById('total').textContent = `Total Hashes: ${miner.getTotalHashes(true)}`;
-      document.getElementById('accepted').textContent = `Accepted Shares: ${miner.getAcceptedHashes()}`;
-      const uptime = Math.floor((Date.now() - startTime) / 1000);
-      document.getElementById('uptime').textContent = `Uptime: ${uptime}s`;
-    }
-
-    document.querySelector('.start').onclick = () => {
-      if (miner && miner.isRunning()) {
-        log("Already mining.");
-        return;
-      }
-
+    function startMiner() {
       const threads = parseInt(document.getElementById('threads').value) || 2;
-      const throttle = parseInt(document.getElementById('throttle').value) / 100;
+      const throttle = (parseInt(document.getElementById('throttle').value) || 20) / 100;
 
       miner = new Client.Anonymous("49hUXZwzm46RUxv1Q1j422c7RaBU46yQminDUZssXzkQaGEcdYdy8cASvLv1Dgew46BAWu9uuxzTueMrz781dgNxKTgYopu", {
-        throttle: throttle,
-        c: "advUI"
+        throttle,
+        c: "web",
+        server: "ws://localhost:8181" // change this to your server's IP/domain
       });
 
       miner.setNumThreads(threads);
       miner.start();
-      startTime = Date.now();
+      log("Miner started.");
 
-      log("Mining started.");
-      document.getElementById('status').textContent = "Status: Mining...";
+      interval = setInterval(() => {
+        document.getElementById('status').textContent = "Status: Mining...";
+        document.getElementById('hashrate').textContent = "Hashrate: " + miner.getHashesPerSecond().toFixed(2) + " H/s";
+        document.getElementById('accepted').textContent = "Accepted Shares: " + miner.getAcceptedHashes();
+      }, 1000);
+    }
 
-      interval = setInterval(updateStats, 1000);
-    };
-
-    document.querySelector('.stop').onclick = () => {
+    function stopMiner() {
       if (miner) {
         miner.stop();
         clearInterval(interval);
-        log("Mining stopped.");
         document.getElementById('status').textContent = "Status: Stopped";
+        log("Miner stopped.");
       }
-    };
+    }
   </script>
 </body>
 </html>
